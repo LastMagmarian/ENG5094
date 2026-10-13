@@ -1,3 +1,4 @@
+
 #define BLYNK_PRINT Serial
 /*
   You must create this file yourself as no auth tokens should be committed to the repo.
@@ -9,66 +10,159 @@
 #include <WiFiS3.h>
 #include <BlynkSimpleWifi.h>
 #include <DHT.h>
+#include <MQ135.h>
+#include <Servo.h>
+#include <optional>
 
-// DHT11 connections
-#define DHTA_PIN 2
-#define DHTB_PIN 3
 #define DHTTYPE DHT11
 
-DHT dhta(DHTA_PIN, DHTTYPE);
-DHT dhtb(DHTB_PIN, DHTTYPE);
+class Room {
+  public:
+    const char* name;
+
+    std::optional<DHT> dht;
+    int humidity_vpin = -1;
+    int temperature_vpin = -1;
+
+    std::optional<MQ135> mq135;
+    int ppm_vpin = -1;
+
+    int led_pin  = -1;
+    int led_vpin = -1;
+
+    // Using pins 9 and 10 is recommended as they become unusable for PWM if ANY pin is used for a servo.
+    int servo_pin   = -1;
+    int servo_vpin  = -1;
+    const int init_servo_angle;
+
+    void begin() {
+      if (dht.has_value()) dht.value().begin();
+      if (servo_pin != -1) {
+        servo.attach(servo_pin);
+        servo.write(init_servo_angle);
+        // maybe remove this if we just want open/closed windows
+        Blynk.virtualWrite(servo_vpin, init_servo_angle);
+      }
+    }
+
+    void sendData() {
+      sendDHT();
+      sendMQ135();
+    }
+
+    void sendDHT() {
+      if (dht.has_value()) {
+        float humidity = dht.value().readHumidity();
+        float temperature = dht.value().readTemperature();
+
+        // Check whether the sensor reading is valid
+        if (isnan(humidity) || isnan(temperature)) {
+          Serial.print("Failed to read from DHT11 sensor");
+          return;
+        }
+
+        // Send readings to Blynk
+        Blynk.virtualWrite(humidity_vpin, humidity);
+        Blynk.virtualWrite(temperature_vpin, temperature);
+
+        // Display readings in Serial Monitor
+        Serial.print("Temperature: ");
+        Serial.print(temperature);
+        Serial.println(" °C");
+
+        Serial.print("Humidity: ");
+        Serial.print(humidity);
+        Serial.println(" %");
+      }
+    }
+
+    void sendMQ135() {
+      if (mq135.has_value()) {
+        float ppm = mq135.value().getPPM();
+
+        // Check whether the sensor reading is valid
+        if (isnan(ppm)) {
+          Serial.print("Failed to read from MQ135 sensor");
+          return;
+        }
+
+        // Send readings to Blynk
+        Blynk.virtualWrite(ppm_vpin, ppm);
+
+        // Display readings in Serial Monitor
+        Serial.print("PPM: ");
+        Serial.print(ppm);
+        Serial.println(" ppm");
+      }
+    }
+
+    void setLED(int status) {
+      if (led_pin != -1) {
+        digitalWrite(led_pin, status);
+      }
+    }
+
+    void setServo(int angle) {
+      if (servo_pin != -1) {
+        servo.write(angle);
+      }
+    }
+
+    Room() : Room("") {};
+    Room(const char* name) : name(name), init_servo_angle(-1) {};
+    Room(const char* name, DHT dht, int humidity_vpin, int temperature_vpin) :
+      Room(name, dht, humidity_vpin, temperature_vpin, std::nullopt, -1, -1, -1, -1, -1, -1) {};
+    Room(const char* name, MQ135 mq135, int ppm_vpin) :
+      Room(name, std::nullopt, -1, -1, mq135, ppm_vpin, -1, -1, -1, -1, -1) {};
+    Room(const char* name, int led_pin, int led_vpin) :
+      Room(name, std::nullopt, -1, -1, std::nullopt, -1, led_pin, led_vpin, -1, -1, -1) {};
+    Room(const char* name, int servo_pin, int servo_vpin, const int init_servo_angle) :
+      Room(name, std::nullopt, -1, -1, std::nullopt, -1, -1, -1, servo_pin, servo_vpin, init_servo_angle) {};
+    Room(const char* name, std::optional<DHT> dht, int humidity_vpin, int temperature_vpin, std::optional<MQ135> mq135, int ppm_vpin, int led_pin, int led_vpin, int servo_pin, int servo_vpin, const int init_servo_angle) :
+      name(name),
+      dht(dht), humidity_vpin(humidity_vpin), temperature_vpin(temperature_vpin),
+      mq135(mq135), ppm_vpin(ppm_vpin),
+      led_pin(led_pin), led_vpin(led_vpin),
+      servo_pin(servo_pin), servo_vpin(servo_vpin), init_servo_angle(init_servo_angle)
+      {};
+    private:
+      Servo servo;
+};
+
 BlynkTimer timer;
+Room rooms[4];
 
-
-// Read DHT11 and send data to Blynk
-void sendDHT(DHT &dht, int humidity_vpin, int temperature_vpin, const char* name = "DHT") {
-  float humidity = dht.readHumidity();
-  float temperature = dht.readTemperature();
-
-  // Check whether the sensor reading is valid
-  if (isnan(humidity) || isnan(temperature)) {
-    Serial.print("Failed to read from DHT11 sensor (");
-    Serial.print(name);
-    Serial.println(")!");
-    return;
-  }
-
-  // Send readings to Blynk
-  Blynk.virtualWrite(humidity_vpin, humidity);
-  Blynk.virtualWrite(temperature_vpin, temperature);
-
-  // Display readings in Serial Monitor
-  Serial.print(name);
-  Serial.println(": ");
-  Serial.print("  Temperature: ");
-  Serial.print(temperature);
-  Serial.println(" °C");
-
-  Serial.print("  Humidity: ");
-  Serial.print(humidity);
-  Serial.println(" %");
-
-  Serial.println("--------------------");
+void sendData() {
+  for (Room room : rooms) room.sendData();
 }
 
-void sendSensors() {
-  sendDHT(dhta, V0, V1, "DHT A");
-  sendDHT(dhtb, V2, V3, "DHT B");
+// This is sadly the only way of getting data from blynk while keeping the led_vpin in the Room class,
+// as BLYNK_WRITE(...) {...} doesn't work with variables. At least its only 4 iterations per message.
+BLYNK_WRITE_DEFAULT() {
+  for (Room room : rooms) {
+    if (request.pin == room.led_vpin) {
+      room.setLED(param.asInt());
+      break;
+    } else if (request.pin == room.servo_vpin) {
+      room.setServo(param.asInt());
+      break;
+    } /*else if (request.pin == room.buzzer_vpin) {
+      break;
+    }*/
+  }
 }
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
 
-  dhta.begin();
-  dhtb.begin();
+  for (Room room : rooms) room.begin();
 
   // Connect Arduino to Wi-Fi and Blynk Cloud
   Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
 
   // Read and send sensor data every second
-  timer.setInterval(1000L, sendSensors);
+  timer.setInterval(1000L, sendData);
 }
-
 
 void loop() {
   Blynk.run();
