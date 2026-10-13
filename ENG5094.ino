@@ -48,8 +48,7 @@ class Room {
     void sendData() {
       Serial.print(name);
       Serial.println(":");
-      sendDHT();
-      sendMQ135();
+      sendDHTAndMQ135();
       Serial.println();
     }
 
@@ -96,6 +95,49 @@ class Room {
         Serial.print("PPM: ");
         Serial.print(ppm);
         Serial.println(" ppm");
+      }
+    }
+
+    // If they are in the same room you can get improved accuracy from the MQ135
+    void sendDHTAndMQ135() {
+      if (dht.has_value() && mq135.has_value()) {
+        float humidity = dht.value().readHumidity();
+        float temperature = dht.value().readTemperature();
+
+        // Check whether the sensor reading is valid
+        if (isnan(humidity) || isnan(temperature)) {
+          Serial.print("Failed to read from DHT11 sensor");
+          return;
+        }
+
+        float ppm = mq135.value().getCorrectedPPM(temperature, humidity);
+
+        // Check whether the sensor reading is valid
+        if (isnan(ppm)) {
+          Serial.print("Failed to read from MQ135 sensor");
+          return;
+        }
+
+        // Send readings to Blynk
+        Blynk.virtualWrite(humidity_vpin, humidity);
+        Blynk.virtualWrite(temperature_vpin, temperature);
+        Blynk.virtualWrite(ppm_vpin, ppm);
+
+        // Display readings in Serial Monitor
+        Serial.print("Temperature: ");
+        Serial.print(temperature);
+        Serial.println(" °C");
+
+        Serial.print("Humidity: ");
+        Serial.print(humidity);
+        Serial.println(" %");
+
+        Serial.print("PPM: ");
+        Serial.print(ppm);
+        Serial.println(" ppm");
+      } else {
+        sendDHT();
+        sendMQ135();
       }
     }
 
