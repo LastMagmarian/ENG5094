@@ -1,4 +1,3 @@
-
 #define BLYNK_PRINT Serial
 /*
   You must create this file yourself as no auth tokens should be committed to the repo.
@@ -14,7 +13,9 @@
 #include <Servo.h>
 #include <optional>
 
-#define DHTTYPE DHT11
+#define DHTTYPE     DHT11
+#define BUZZER_VPIN V45
+#define BUZZER_PIN  13
 
 class Room {
   public:
@@ -40,7 +41,6 @@ class Room {
       if (servo_pin != -1) {
         servo.attach(servo_pin);
         servo.write(init_servo_angle);
-        // maybe remove this if we just want open/closed windows
         Blynk.virtualWrite(servo_vpin, init_servo_angle);
       }
     }
@@ -113,6 +113,7 @@ class Room {
 
     Room() : Room("") {};
     Room(const char* name) : name(name), init_servo_angle(-1) {};
+
     Room(const char* name, DHT dht, int humidity_vpin, int temperature_vpin) :
       Room(name, dht, humidity_vpin, temperature_vpin, std::nullopt, -1, -1, -1, -1, -1, -1) {};
     Room(const char* name, MQ135 mq135, int ppm_vpin) :
@@ -121,6 +122,17 @@ class Room {
       Room(name, std::nullopt, -1, -1, std::nullopt, -1, led_pin, led_vpin, -1, -1, -1) {};
     Room(const char* name, int servo_pin, int servo_vpin, const int init_servo_angle) :
       Room(name, std::nullopt, -1, -1, std::nullopt, -1, -1, -1, servo_pin, servo_vpin, init_servo_angle) {};
+
+    Room(const char* name, DHT dht, int humidity_vpin, int temperature_vpin, int led_pin, int led_vpin) :
+      Room(name, dht, humidity_vpin, temperature_vpin, std::nullopt, -1, led_pin, led_vpin, -1, -1, -1) {};
+    Room(const char* name, MQ135 mq135, int ppm_vpin, int led_pin, int led_vpin) :
+      Room(name, std::nullopt, -1, -1, mq135, ppm_vpin, led_pin, led_vpin, -1, -1, -1) {};
+    Room(const char* name, int servo_pin, int servo_vpin, const int init_servo_angle, int led_pin, int led_vpin) :
+      Room(name, std::nullopt, -1, -1, std::nullopt, -1, led_pin, led_vpin, servo_pin, servo_vpin, init_servo_angle) {};
+
+    Room(const char* name, DHT dht, int humidity_vpin, int temperature_vpin, MQ135 mq135, int ppm_vpin, int led_pin, int led_vpin) :
+      Room(name, dht, humidity_vpin, temperature_vpin, mq135, ppm_vpin, led_pin, led_vpin, -1, -1, -1) {};
+
     Room(const char* name, std::optional<DHT> dht, int humidity_vpin, int temperature_vpin, std::optional<MQ135> mq135, int ppm_vpin, int led_pin, int led_vpin, int servo_pin, int servo_vpin, const int init_servo_angle) :
       name(name),
       dht(dht), humidity_vpin(humidity_vpin), temperature_vpin(temperature_vpin),
@@ -133,13 +145,19 @@ class Room {
 };
 
 BlynkTimer timer;
-Room rooms[4];
+// Define rooms here
+Room rooms[4] {
+  {"Front Left", DHT(D2, DHTTYPE), V0, V1, MQ135(A0), V2, D3, V3},
+  {"Front Right", DHT(D4, DHTTYPE), V10, V11, MQ135(A1), V12, D5, V13},
+  {"Back Left", D9, V24, 0, D6, V23},
+  {"Back Right", D10, V34, 0, D7, V33}
+};
 
 void sendData() {
   for (Room room : rooms) room.sendData();
 }
 
-// This is sadly the only way of getting data from blynk while keeping the led_vpin in the Room class,
+// This is sadly the only way of getting data from blynk while keeping the led_vpin and servo_vpin in the Room class,
 // as BLYNK_WRITE(...) {...} doesn't work with variables. At least its only 4 iterations per message.
 BLYNK_WRITE_DEFAULT() {
   for (Room room : rooms) {
@@ -149,9 +167,16 @@ BLYNK_WRITE_DEFAULT() {
     } else if (request.pin == room.servo_vpin) {
       room.setServo(param.asInt());
       break;
-    } /*else if (request.pin == room.buzzer_vpin) {
-      break;
-    }*/
+    }
+  }
+}
+
+BLYNK_WRITE(BUZZER_VPIN) {
+  int frequency = param.asInt();
+  if (frequency <= 0) {
+    noTone(BUZZER_PIN);
+  } else {
+    tone(BUZZER_PIN, frequency);
   }
 }
 
