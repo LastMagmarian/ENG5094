@@ -147,10 +147,10 @@ class Room {
 BlynkTimer timer;
 // Define rooms here
 Room rooms[4] {
-  {"Front Left", DHT(D2, DHTTYPE), V0, V1, MQ135(A0), V2, D3, V3},
-  {"Front Right", DHT(D4, DHTTYPE), V10, V11, MQ135(A1), V12, D5, V13},
-  {"Back Left", D9, V24, 0, D6, V23},
-  {"Back Right", D10, V34, 0, D7, V33}
+  Room("Front Left", DHT(D2, DHTTYPE), V0, V1, MQ135(A0), V2, D3, V3),
+  Room("Front Right", DHT(D4, DHTTYPE), V10, V11, MQ135(A1), V12, D5, V13),
+  Room("Back Left", D9, V24, 0, D6, V23),
+  Room("Back Right", D10, V34, 0, D7, V33)
 };
 
 void sendData() {
