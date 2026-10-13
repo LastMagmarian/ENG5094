@@ -46,8 +46,11 @@ class Room {
     }
 
     void sendData() {
+      Serial.print(name);
+      Serial.println(":");
       sendDHT();
       sendMQ135();
+      Serial.println();
     }
 
     void sendDHT() {
