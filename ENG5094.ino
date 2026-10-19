@@ -222,6 +222,13 @@ BLYNK_WRITE(BUZZER_VPIN) {
   }
 }
 
+BLYNK_CONNECTED() {
+  for (Room room : rooms) {
+    Blynk.syncVirtual(room.led_vpin, room.servo_vpin);
+  }
+  Blynk.syncVirtual(BUZZER_VPIN);
+}
+
 void setup() {
   Serial.begin(115200);
 
