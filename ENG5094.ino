@@ -195,8 +195,10 @@ Room rooms[4] {
   Room("Back Right", D10, V34, 0, D7, V33)
 };
 
-void sendData() {
-  for (Room room : rooms) room.sendData();
+void onTimer() {
+  for (Room room : rooms) { 
+    room.sendData();
+  }
 }
 
 // This is sadly the only way of getting data from blynk while keeping the led_vpin and servo_vpin in the Room class,
@@ -238,7 +240,7 @@ void setup() {
   Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
 
   // Read and send sensor data every second
-  timer.setInterval(1000L, sendData);
+  timer.setInterval(1000L, onTimer);
 }
 
 void loop() {
