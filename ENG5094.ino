@@ -17,6 +17,12 @@
 #define BUZZER_VPIN V45
 #define BUZZER_PIN  13
 
+struct RoomData {
+  float temperature = NAN;
+  float humidity    = NAN;
+  float ppm         = NAN;
+};
+
 class Room {
   public:
     const char* name;
@@ -36,6 +42,8 @@ class Room {
     int servo_vpin  = -1;
     const int init_servo_angle;
 
+    struct RoomData data;
+
     void begin() {
       if (dht.has_value()) dht.value().begin();
       if (servo_pin != -1) {
@@ -54,46 +62,46 @@ class Room {
 
     void sendDHT() {
       if (dht.has_value()) {
-        float humidity = dht.value().readHumidity();
-        float temperature = dht.value().readTemperature();
+        data.humidity = dht.value().readHumidity();
+        data.temperature = dht.value().readTemperature();
 
         // Check whether the sensor reading is valid
-        if (isnan(humidity) || isnan(temperature)) {
+        if (isnan(data.humidity) || isnan(data.temperature)) {
           Serial.print("Failed to read from DHT11 sensor");
           return;
         }
 
         // Send readings to Blynk
-        Blynk.virtualWrite(humidity_vpin, humidity);
-        Blynk.virtualWrite(temperature_vpin, temperature);
+        Blynk.virtualWrite(humidity_vpin, data.humidity);
+        Blynk.virtualWrite(temperature_vpin, data.temperature);
 
         // Display readings in Serial Monitor
         Serial.print("Temperature: ");
-        Serial.print(temperature);
+        Serial.print(data.temperature);
         Serial.println(" °C");
 
         Serial.print("Humidity: ");
-        Serial.print(humidity);
+        Serial.print(data.humidity);
         Serial.println(" %");
       }
     }
 
     void sendMQ135() {
       if (mq135.has_value()) {
-        float ppm = mq135.value().getPPM();
+        data.ppm = mq135.value().getPPM();
 
         // Check whether the sensor reading is valid
-        if (isnan(ppm)) {
+        if (isnan(data.ppm)) {
           Serial.print("Failed to read from MQ135 sensor");
           return;
         }
 
         // Send readings to Blynk
-        Blynk.virtualWrite(ppm_vpin, ppm);
+        Blynk.virtualWrite(ppm_vpin, data.ppm);
 
         // Display readings in Serial Monitor
         Serial.print("PPM: ");
-        Serial.print(ppm);
+        Serial.print(data.ppm);
         Serial.println(" ppm");
       }
     }
@@ -101,39 +109,39 @@ class Room {
     // If they are in the same room you can get improved accuracy from the MQ135
     void sendDHTAndMQ135() {
       if (dht.has_value() && mq135.has_value()) {
-        float humidity = dht.value().readHumidity();
-        float temperature = dht.value().readTemperature();
+        data.humidity = dht.value().readHumidity();
+        data.temperature = dht.value().readTemperature();
 
         // Check whether the sensor reading is valid
-        if (isnan(humidity) || isnan(temperature)) {
+        if (isnan(data.humidity) || isnan(data.temperature)) {
           Serial.print("Failed to read from DHT11 sensor");
           return;
         }
 
-        float ppm = mq135.value().getCorrectedPPM(temperature, humidity);
+        data.ppm = mq135.value().getCorrectedPPM(data.temperature, data.humidity);
 
         // Check whether the sensor reading is valid
-        if (isnan(ppm)) {
+        if (isnan(data.ppm)) {
           Serial.print("Failed to read from MQ135 sensor");
           return;
         }
 
         // Send readings to Blynk
-        Blynk.virtualWrite(humidity_vpin, humidity);
-        Blynk.virtualWrite(temperature_vpin, temperature);
-        Blynk.virtualWrite(ppm_vpin, ppm);
+        Blynk.virtualWrite(humidity_vpin, data.humidity);
+        Blynk.virtualWrite(temperature_vpin, data.temperature);
+        Blynk.virtualWrite(ppm_vpin, data.ppm);
 
         // Display readings in Serial Monitor
         Serial.print("Temperature: ");
-        Serial.print(temperature);
+        Serial.print(data.temperature);
         Serial.println(" °C");
 
         Serial.print("Humidity: ");
-        Serial.print(humidity);
+        Serial.print(data.humidity);
         Serial.println(" %");
 
         Serial.print("PPM: ");
-        Serial.print(ppm);
+        Serial.print(data.ppm);
         Serial.println(" ppm");
       } else {
         sendDHT();
