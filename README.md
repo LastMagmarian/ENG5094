@@ -6,7 +6,7 @@
 - [Blynk](https://blynk.cloud) and its associated [library]()
 - [Adafruit DHT Library](https://github.com/adafruit/DHT-sensor-library)
 - [MQ135 Library](https://github.com/NuclearPhoenixx/MQ135)
-- A `secrets.h` file placed alongside `END5094.ino` with the following contents
+- A `secrets.h` file placed alongside `ENG5094.ino` with the following contents
 ```c
 #pragma once
 
