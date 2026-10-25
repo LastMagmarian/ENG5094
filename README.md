@@ -3,7 +3,7 @@
 ## Requirements
 ### Software
 - Arduino IDE
-- [Blynk](https://blynk.cloud) and its associated [library]()
+- [Blynk](https://blynk.cloud) and its associated [library](https://docs.blynk.io/en/blynk-library-firmware-api/installation/install-blynk-library-in-arduino-ide)
 - [Adafruit DHT Library](https://github.com/adafruit/DHT-sensor-library)
 - [MQ135 Library](https://github.com/NuclearPhoenixx/MQ135)
 - A `secrets.h` file placed alongside `ENG5094.ino` with the following contents
