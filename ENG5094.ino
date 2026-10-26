@@ -42,6 +42,8 @@ class Room {
     int servo_vpin  = -1;
     const int init_servo_angle;
 
+    Room* connected = NULL;
+
     struct RoomData data;
     std::function<void()> process = [](){};
 
@@ -61,7 +63,7 @@ class Room {
       Serial.println();
     }
 
-    void sendDHT() {
+    bool sendDHT() {
       if (dht.has_value()) {
         data.humidity = dht.value().readHumidity();
         data.temperature = dht.value().readTemperature();
@@ -69,7 +71,7 @@ class Room {
         // Check whether the sensor reading is valid
         if (isnan(data.humidity) || isnan(data.temperature)) {
           Serial.print("Failed to read from DHT11 sensor");
-          return;
+          return false;
         }
 
         // Send readings to Blynk
@@ -84,12 +86,16 @@ class Room {
         Serial.print("Humidity: ");
         Serial.print(data.humidity);
         Serial.println(" %");
+        
+        return true;
       }
+      return false;
     }
 
-    void sendMQ135() {
+    void sendMQ135(std::optional<RoomData> dht_data = std::nullopt) {
       if (mq135.has_value()) {
-        data.ppm = mq135.value().getPPM();
+        if (dht_data.has_value()) data.ppm = mq135.value().getCorrectedPPM(dht_data.value().temperature, dht_data.value().humidity);
+        else data.ppm = mq135.value().getPPM();
 
         // Check whether the sensor reading is valid
         if (isnan(data.ppm)) {
@@ -109,45 +115,11 @@ class Room {
 
     // If they are in the same room you can get improved accuracy from the MQ135
     void sendDHTAndMQ135() {
-      if (dht.has_value() && mq135.has_value()) {
-        data.humidity = dht.value().readHumidity();
-        data.temperature = dht.value().readTemperature();
-
-        // Check whether the sensor reading is valid
-        if (isnan(data.humidity) || isnan(data.temperature)) {
-          Serial.print("Failed to read from DHT11 sensor");
-          return;
-        }
-
-        data.ppm = mq135.value().getCorrectedPPM(data.temperature, data.humidity);
-
-        // Check whether the sensor reading is valid
-        if (isnan(data.ppm)) {
-          Serial.print("Failed to read from MQ135 sensor");
-          return;
-        }
-
-        // Send readings to Blynk
-        Blynk.virtualWrite(humidity_vpin, data.humidity);
-        Blynk.virtualWrite(temperature_vpin, data.temperature);
-        Blynk.virtualWrite(ppm_vpin, data.ppm);
-
-        // Display readings in Serial Monitor
-        Serial.print("Temperature: ");
-        Serial.print(data.temperature);
-        Serial.println(" °C");
-
-        Serial.print("Humidity: ");
-        Serial.print(data.humidity);
-        Serial.println(" %");
-
-        Serial.print("PPM: ");
-        Serial.print(data.ppm);
-        Serial.println(" ppm");
-      } else {
-        sendDHT();
-        sendMQ135();
-      }
+      if (sendDHT()) {
+        sendMQ135(data);
+      } else if (connected != NULL && !isnan(connected->data.temperature)) {
+        sendMQ135(connected->data);
+      } else sendMQ135();
     }
 
     void setLED(int status) {
@@ -183,6 +155,8 @@ class Room {
 
     Room(const char* name, DHT dht, int humidity_vpin, int temperature_vpin, MQ135 mq135, int ppm_vpin, int led_pin, int led_vpin, std::function<void()> process = [](){}) :
       Room(name, dht, humidity_vpin, temperature_vpin, mq135, ppm_vpin, led_pin, led_vpin, -1, -1, -1, process) {};
+    Room(const char* name, DHT dht, int humidity_vpin, int temperature_vpin, int servo_pin, int servo_vpin, const int init_servo_angle, int led_pin, int led_vpin, std::function<void()> process = [](){}) :
+      Room(name, dht, humidity_vpin, temperature_vpin, std::nullopt, -1, led_pin, led_vpin, servo_pin, servo_vpin, init_servo_angle, process) {};
 
     Room(const char* name, std::optional<DHT> dht, int humidity_vpin, int temperature_vpin, std::optional<MQ135> mq135, int ppm_vpin, int led_pin, int led_vpin, int servo_pin, int servo_vpin, const int init_servo_angle, std::function<void()> process = [](){}) :
       name(name),
@@ -199,17 +173,17 @@ class Room {
 BlynkTimer timer;
 // Define rooms here
 Room rooms[4] {
-  Room("Front Left", DHT(D2, DHTTYPE), V0, V1, MQ135(A0), V2, D3, V3, [](){
-    // Do stuff with rooms[0] (Front Left) data here
+  Room("Back Left", DHT(D2, DHTTYPE), V0, V1, D9, V24, 0, D6, V23, [](){
+    // Do stuff with rooms[0] (Back Left) data here
   }),
-  Room("Front Right", DHT(D4, DHTTYPE), V10, V11, MQ135(A1), V12, D5, V13, [](){
-    // Do stuff with rooms[1] (Front Right) data here
+  Room("Back Right", DHT(D4, DHTTYPE), V10, V11, D10, V34, 0, D7, V33, [](){
+    // Do stuff with rooms[1] (Back Left) data here
   }),
-  Room("Back Left", D9, V24, 0, D6, V23, [](){
-    // Do stuff with rooms[2] (Back Left) data here
+  Room("Front Left", MQ135(A0), V2, D3, V3, [](){
+    // Do stuff with rooms[2] (Front Left) data here
   }),
-  Room("Back Right", D10, V34, 0, D7, V33, [](){
-    // Do stuff with rooms[3] (Back Left) data here
+  Room("Front Right", MQ135(A1), V12, D5, V13, [](){
+    // Do stuff with rooms[3] (Front Right) data here
   })
 };
 
@@ -217,6 +191,7 @@ void onTimer() {
   for (Room room : rooms) { 
     room.sendData();
     room.process();
+
   }
 }
 
@@ -251,6 +226,12 @@ BLYNK_CONNECTED() {
 }
 
 void setup() {
+  // Setup connections between rooms
+  rooms[0].connected = &rooms[2];
+  rooms[1].connected = &rooms[3];
+  rooms[2].connected = &rooms[0];
+  rooms[3].connected = &rooms[1];
+
   Serial.begin(115200);
 
   for (Room room : rooms) room.begin();
