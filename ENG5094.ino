@@ -12,6 +12,7 @@
 #include <MQ135.h>
 #include <Servo.h>
 #include <optional>
+#include <functional>
 
 #define DHTTYPE     DHT11
 #define BUZZER_VPIN V45
@@ -28,18 +29,18 @@ class Room {
     const char* name;
 
     std::optional<DHT> dht;
-    int humidity_vpin = -1;
-    int temperature_vpin = -1;
+    const int humidity_vpin = -1;
+    const int temperature_vpin = -1;
 
     std::optional<MQ135> mq135;
-    int ppm_vpin = -1;
+    const int ppm_vpin = -1;
 
-    int led_pin  = -1;
-    int led_vpin = -1;
+    const int led_pin  = -1;
+    const int led_vpin = -1;
 
     // Using pins 9 and 10 is recommended as they become unusable for PWM if ANY pin is used for a servo.
-    int servo_pin   = -1;
-    int servo_vpin  = -1;
+    const int servo_pin   = -1;
+    const int servo_vpin  = -1;
     const int init_servo_angle;
 
     Room* connected = NULL;
@@ -134,31 +135,38 @@ class Room {
       }
     }
 
+    int getServo() {
+      if (servo_pin != -1) {
+        return servo.read();
+      }
+      return -1;
+    }
+
     Room() : Room("") {};
     Room(const char* name) : name(name), init_servo_angle(-1) {};
 
-    Room(const char* name, DHT dht, int humidity_vpin, int temperature_vpin, std::function<void()> process = [](){}) :
+    Room(const char* name, DHT dht, const int humidity_vpin, const int temperature_vpin, std::function<void()> process = [](){}) :
       Room(name, dht, humidity_vpin, temperature_vpin, std::nullopt, -1, -1, -1, -1, -1, -1, process) {};
-    Room(const char* name, MQ135 mq135, int ppm_vpin, std::function<void()> process = [](){}) :
+    Room(const char* name, MQ135 mq135, const int ppm_vpin, std::function<void()> process = [](){}) :
       Room(name, std::nullopt, -1, -1, mq135, ppm_vpin, -1, -1, -1, -1, -1, process) {};
-    Room(const char* name, int led_pin, int led_vpin, std::function<void()> process = [](){}) :
+    Room(const char* name, const int led_pin, const int led_vpin, std::function<void()> process = [](){}) :
       Room(name, std::nullopt, -1, -1, std::nullopt, -1, led_pin, led_vpin, -1, -1, -1, process) {};
-    Room(const char* name, int servo_pin, int servo_vpin, const int init_servo_angle, std::function<void()> process = [](){}) :
+    Room(const char* name, const int servo_pin, const int servo_vpin, const int init_servo_angle, std::function<void()> process = [](){}) :
       Room(name, std::nullopt, -1, -1, std::nullopt, -1, -1, -1, servo_pin, servo_vpin, init_servo_angle, process) {};
 
-    Room(const char* name, DHT dht, int humidity_vpin, int temperature_vpin, int led_pin, int led_vpin, std::function<void()> process = [](){}) :
+    Room(const char* name, DHT dht, const int humidity_vpin, const int temperature_vpin, const int led_pin, const int led_vpin, std::function<void()> process = [](){}) :
       Room(name, dht, humidity_vpin, temperature_vpin, std::nullopt, -1, led_pin, led_vpin, -1, -1, -1, process) {};
-    Room(const char* name, MQ135 mq135, int ppm_vpin, int led_pin, int led_vpin, std::function<void()> process = [](){}) :
+    Room(const char* name, MQ135 mq135, const int ppm_vpin, const int led_pin, const int led_vpin, std::function<void()> process = [](){}) :
       Room(name, std::nullopt, -1, -1, mq135, ppm_vpin, led_pin, led_vpin, -1, -1, -1, process) {};
-    Room(const char* name, int servo_pin, int servo_vpin, const int init_servo_angle, int led_pin, int led_vpin, std::function<void()> process = [](){}) :
+    Room(const char* name, const int servo_pin, const int servo_vpin, const int init_servo_angle, const int led_pin, const int led_vpin, std::function<void()> process = [](){}) :
       Room(name, std::nullopt, -1, -1, std::nullopt, -1, led_pin, led_vpin, servo_pin, servo_vpin, init_servo_angle, process) {};
 
-    Room(const char* name, DHT dht, int humidity_vpin, int temperature_vpin, MQ135 mq135, int ppm_vpin, int led_pin, int led_vpin, std::function<void()> process = [](){}) :
+    Room(const char* name, DHT dht, const int humidity_vpin, const int temperature_vpin, MQ135 mq135, const int ppm_vpin, const int led_pin, const int led_vpin, std::function<void()> process = [](){}) :
       Room(name, dht, humidity_vpin, temperature_vpin, mq135, ppm_vpin, led_pin, led_vpin, -1, -1, -1, process) {};
-    Room(const char* name, DHT dht, int humidity_vpin, int temperature_vpin, int servo_pin, int servo_vpin, const int init_servo_angle, int led_pin, int led_vpin, std::function<void()> process = [](){}) :
+    Room(const char* name, DHT dht, const int humidity_vpin, const int temperature_vpin, const int servo_pin, const int servo_vpin, const int init_servo_angle, const int led_pin, const int led_vpin, std::function<void()> process = [](){}) :
       Room(name, dht, humidity_vpin, temperature_vpin, std::nullopt, -1, led_pin, led_vpin, servo_pin, servo_vpin, init_servo_angle, process) {};
 
-    Room(const char* name, std::optional<DHT> dht, int humidity_vpin, int temperature_vpin, std::optional<MQ135> mq135, int ppm_vpin, int led_pin, int led_vpin, int servo_pin, int servo_vpin, const int init_servo_angle, std::function<void()> process = [](){}) :
+    Room(const char* name, std::optional<DHT> dht, const int humidity_vpin, const int temperature_vpin, std::optional<MQ135> mq135, const int ppm_vpin, const int led_pin, const int led_vpin, const int servo_pin, const int servo_vpin, const int init_servo_angle, std::function<void()> process = [](){}) :
       name(name),
       dht(dht), humidity_vpin(humidity_vpin), temperature_vpin(temperature_vpin),
       mq135(mq135), ppm_vpin(ppm_vpin),
@@ -188,7 +196,7 @@ Room rooms[4] {
 };
 
 void onTimer() {
-  for (Room room : rooms) { 
+  for (Room &room : rooms) {
     room.sendData();
     room.process();
 
@@ -198,7 +206,7 @@ void onTimer() {
 // This is sadly the only way of getting data from blynk while keeping the led_vpin and servo_vpin in the Room class,
 // as BLYNK_WRITE(...) {...} doesn't work with variables. At least its only 4 iterations per message.
 BLYNK_WRITE_DEFAULT() {
-  for (Room room : rooms) {
+  for (Room &room : rooms) {
     if (request.pin == room.led_vpin) {
       room.setLED(param.asInt());
       break;
@@ -219,7 +227,7 @@ BLYNK_WRITE(BUZZER_VPIN) {
 }
 
 BLYNK_CONNECTED() {
-  for (Room room : rooms) {
+  for (Room &room : rooms) {
     Blynk.syncVirtual(room.led_vpin, room.servo_vpin);
   }
   Blynk.syncVirtual(BUZZER_VPIN);
@@ -234,10 +242,11 @@ void setup() {
 
   Serial.begin(115200);
 
-  for (Room room : rooms) room.begin();
-
   // Connect Arduino to Wi-Fi and Blynk Cloud
   Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+
+  // Setup rooms
+  for (Room &room : rooms) room.begin();
 
   // Read and send sensor data every second
   timer.setInterval(1000L, onTimer);
