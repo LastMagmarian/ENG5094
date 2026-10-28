@@ -177,9 +177,9 @@ class Room {
       servo_pin(servo_pin), servo_vpin(servo_vpin), init_servo_angle(init_servo_angle),
       process_func(process)
       {};
-    private:
-      Servo servo;
-      std::function<void(Room &room)> process_func = [](Room &room){};
+  private:
+    Servo servo;
+    std::function<void(Room &room)> process_func = [](Room &room){};
 };
 
 BlynkTimer timer;
