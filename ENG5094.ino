@@ -46,7 +46,6 @@ class Room {
     Room* connected = NULL;
 
     struct RoomData data;
-    std::function<void()> process = [](){};
 
     void begin() {
       if (dht.has_value()) dht.value().begin();
@@ -55,6 +54,10 @@ class Room {
         servo.write(init_servo_angle);
         Blynk.virtualWrite(servo_vpin, init_servo_angle);
       }
+    }
+
+    void process() {
+      process_func(*this);
     }
 
     void sendData() {
@@ -145,52 +148,58 @@ class Room {
     Room() : Room("") {};
     Room(const char* name) : name(name), init_servo_angle(-1) {};
 
-    Room(const char* name, DHT dht, const int humidity_vpin, const int temperature_vpin, std::function<void()> process = [](){}) :
+    Room(const char* name, DHT dht, const int humidity_vpin, const int temperature_vpin, std::function<void(Room &room)> process = [](Room &room){}) :
       Room(name, dht, humidity_vpin, temperature_vpin, std::nullopt, -1, -1, -1, -1, -1, -1, process) {};
-    Room(const char* name, MQ135 mq135, const int ppm_vpin, std::function<void()> process = [](){}) :
+    Room(const char* name, MQ135 mq135, const int ppm_vpin, std::function<void(Room &room)> process = [](Room &room){}) :
       Room(name, std::nullopt, -1, -1, mq135, ppm_vpin, -1, -1, -1, -1, -1, process) {};
-    Room(const char* name, const int led_pin, const int led_vpin, std::function<void()> process = [](){}) :
+    Room(const char* name, const int led_pin, const int led_vpin, std::function<void(Room &room)> process = [](Room &room){}) :
       Room(name, std::nullopt, -1, -1, std::nullopt, -1, led_pin, led_vpin, -1, -1, -1, process) {};
-    Room(const char* name, const int servo_pin, const int servo_vpin, const int init_servo_angle, std::function<void()> process = [](){}) :
+    Room(const char* name, const int servo_pin, const int servo_vpin, const int init_servo_angle, std::function<void(Room &room)> process = [](Room &room){}) :
       Room(name, std::nullopt, -1, -1, std::nullopt, -1, -1, -1, servo_pin, servo_vpin, init_servo_angle, process) {};
 
-    Room(const char* name, DHT dht, const int humidity_vpin, const int temperature_vpin, const int led_pin, const int led_vpin, std::function<void()> process = [](){}) :
+    Room(const char* name, DHT dht, const int humidity_vpin, const int temperature_vpin, const int led_pin, const int led_vpin, std::function<void(Room &room)> process = [](Room &room){}) :
       Room(name, dht, humidity_vpin, temperature_vpin, std::nullopt, -1, led_pin, led_vpin, -1, -1, -1, process) {};
-    Room(const char* name, MQ135 mq135, const int ppm_vpin, const int led_pin, const int led_vpin, std::function<void()> process = [](){}) :
+    Room(const char* name, MQ135 mq135, const int ppm_vpin, const int led_pin, const int led_vpin, std::function<void(Room &room)> process = [](Room &room){}) :
       Room(name, std::nullopt, -1, -1, mq135, ppm_vpin, led_pin, led_vpin, -1, -1, -1, process) {};
-    Room(const char* name, const int servo_pin, const int servo_vpin, const int init_servo_angle, const int led_pin, const int led_vpin, std::function<void()> process = [](){}) :
+    Room(const char* name, const int servo_pin, const int servo_vpin, const int init_servo_angle, const int led_pin, const int led_vpin, std::function<void(Room &room)> process = [](Room &room){}) :
       Room(name, std::nullopt, -1, -1, std::nullopt, -1, led_pin, led_vpin, servo_pin, servo_vpin, init_servo_angle, process) {};
 
-    Room(const char* name, DHT dht, const int humidity_vpin, const int temperature_vpin, MQ135 mq135, const int ppm_vpin, const int led_pin, const int led_vpin, std::function<void()> process = [](){}) :
+    Room(const char* name, DHT dht, const int humidity_vpin, const int temperature_vpin, MQ135 mq135, const int ppm_vpin, const int led_pin, const int led_vpin, std::function<void(Room &room)> process = [](Room &room){}) :
       Room(name, dht, humidity_vpin, temperature_vpin, mq135, ppm_vpin, led_pin, led_vpin, -1, -1, -1, process) {};
-    Room(const char* name, DHT dht, const int humidity_vpin, const int temperature_vpin, const int servo_pin, const int servo_vpin, const int init_servo_angle, const int led_pin, const int led_vpin, std::function<void()> process = [](){}) :
+    Room(const char* name, DHT dht, const int humidity_vpin, const int temperature_vpin, const int servo_pin, const int servo_vpin, const int init_servo_angle, const int led_pin, const int led_vpin, std::function<void(Room &room)> process = [](Room &room){}) :
       Room(name, dht, humidity_vpin, temperature_vpin, std::nullopt, -1, led_pin, led_vpin, servo_pin, servo_vpin, init_servo_angle, process) {};
 
-    Room(const char* name, std::optional<DHT> dht, const int humidity_vpin, const int temperature_vpin, std::optional<MQ135> mq135, const int ppm_vpin, const int led_pin, const int led_vpin, const int servo_pin, const int servo_vpin, const int init_servo_angle, std::function<void()> process = [](){}) :
+    Room(const char* name, std::optional<DHT> dht, const int humidity_vpin, const int temperature_vpin, std::optional<MQ135> mq135, const int ppm_vpin, const int led_pin, const int led_vpin, const int servo_pin, const int servo_vpin, const int init_servo_angle, std::function<void(Room &room)> process = [](Room &room){}) :
       name(name),
       dht(dht), humidity_vpin(humidity_vpin), temperature_vpin(temperature_vpin),
       mq135(mq135), ppm_vpin(ppm_vpin),
       led_pin(led_pin), led_vpin(led_vpin),
       servo_pin(servo_pin), servo_vpin(servo_vpin), init_servo_angle(init_servo_angle),
-      process(process)
+      process_func(process)
       {};
     private:
       Servo servo;
+      std::function<void(Room &room)> process_func = [](Room &room){};
 };
 
 BlynkTimer timer;
 // Define rooms here
 Room rooms[4] {
-  Room("Back Left", DHT(D2, DHTTYPE), V0, V1, D9, V24, 0, D6, V23, [](){
+  Room("Back Left", DHT(D2, DHTTYPE), V0, V1, D9, V24, 0, D6, V23, [](Room &room){
     // Do stuff with rooms[0] (Back Left) data here
+
+    // Example of displaying current room data and doing something to another room. Replace this with something useful.
+    Serial.println(room.name);
+    Serial.println(room.data.temperature);
+    rooms[1].setLED(HIGH);
   }),
-  Room("Back Right", DHT(D4, DHTTYPE), V10, V11, D10, V34, 0, D7, V33, [](){
+  Room("Back Right", DHT(D4, DHTTYPE), V10, V11, D10, V34, 0, D7, V33, [](Room &room){
     // Do stuff with rooms[1] (Back Left) data here
   }),
-  Room("Front Left", MQ135(A0), V2, D3, V3, [](){
+  Room("Front Left", MQ135(A0), V2, D3, V3, [](Room &room){
     // Do stuff with rooms[2] (Front Left) data here
   }),
-  Room("Front Right", MQ135(A1), V12, D5, V13, [](){
+  Room("Front Right", MQ135(A1), V12, D5, V13, [](Room &room){
     // Do stuff with rooms[3] (Front Right) data here
   })
 };
