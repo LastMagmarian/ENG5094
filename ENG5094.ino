@@ -12,6 +12,7 @@
 #include <MQ135.h>
 #include <Servo.h>
 #include <optional>
+#include <functional> // Since you have used std::function you should also inlcude this - Youssef 
 
 #define DHTTYPE     DHT11
 #define BUZZER_VPIN V45
@@ -52,8 +53,7 @@ class Room {
       if (servo_pin != -1) {
         servo.attach(servo_pin);
         servo.write(init_servo_angle);
-        Blynk.virtualWrite(servo_vpin, init_servo_angle);
-      }
+      }      // i Hvae removed Blynk.virtualWrite(servo_vpin, init_servo_angle); as room.begin() runs before Blynk.begin(), so it attempts to send that value before the Arduino connects to Blynk. - Youssef
     }
 
     void sendData() {
@@ -187,63 +187,172 @@ Room rooms[4] {
   })
 };
 
-void onTimer() {
-  for (Room room : rooms) { 
-    room.sendData();
-    room.process();
 
+/*Youssef's edits and contribution to the code */
+
+
+
+const float TEMP_ON  = 28.0;
+const float TEMP_OFF = 27.0;
+
+const float HUMIDITY_ON  = 75.0;
+const float HUMIDITY_OFF = 70.0;
+
+// Example MQ135 thresholds: adjust after calibration/testing.
+const float AIR_ON  = 1000.0;
+const float AIR_OFF = 800.0;
+
+// Check these angles against your actual window mechanism.
+const int WINDOW_CLOSED = 0;
+const int WINDOW_OPEN   = 90;
+
+const int ALARM_FREQUENCY = 2000;
+
+// Index 0 = left side; index 1 = right side.
+bool temperatureHigh[2] = {false, false};
+bool humidityHigh[2]    = {false, false};
+bool airPoor[2]         = {false, false};
+bool previousAlarm[2]   = {false, false};
+
+
+// Update one condition using separate ON and OFF thresholds.
+void updateCondition(float reading, float onThreshold,
+                     float offThreshold, bool &condition) {
+  // An invalid reading does not clear an existing alarm.
+  if (isnan(reading) || isinf(reading)) {
+    return;
+  }
+
+  if (reading >= onThreshold) {
+    condition = true;
+  } else if (reading <= offThreshold) {
+    condition = false;
   }
 }
 
-// This is sadly the only way of getting data from blynk while keeping the led_vpin and servo_vpin in the Room class,
-// as BLYNK_WRITE(...) {...} doesn't work with variables. At least its only 4 iterations per message.
-BLYNK_WRITE_DEFAULT() {
-  for (Room room : rooms) {
-    if (request.pin == room.led_vpin) {
-      room.setLED(param.asInt());
-      break;
-    } else if (request.pin == room.servo_vpin) {
-      room.setServo(param.asInt());
-      break;
+
+// Read the stored data and control both sides of the house.
+void updateAutomaticControl(bool forceDashboardUpdate = false) {
+  bool anyAlarm = false;
+
+  for (int side = 0; side < 2; side++) {
+    // Left: rooms[0] and rooms[2].
+    // Right: rooms[1] and rooms[3].
+    Room &backRoom  = rooms[side];
+    Room &frontRoom = rooms[side + 2];
+
+    updateCondition(backRoom.data.temperature,
+                    TEMP_ON, TEMP_OFF,
+                    temperatureHigh[side]);
+
+    updateCondition(backRoom.data.humidity,
+                    HUMIDITY_ON, HUMIDITY_OFF,
+                    humidityHigh[side]);
+
+    updateCondition(frontRoom.data.ppm,
+                    AIR_ON, AIR_OFF,
+                    airPoor[side]);
+
+    // Any one condition activates this side.
+    bool alarm = temperatureHigh[side]
+                 || humidityHigh[side]
+                 || airPoor[side];
+
+    int ledState = alarm ? HIGH : LOW;
+    int windowAngle = alarm ? WINDOW_OPEN : WINDOW_CLOSED;
+
+    backRoom.setLED(ledState);
+    frontRoom.setLED(ledState);
+    backRoom.setServo(windowAngle);
+
+    // Update the app when the output changes or reconnects.
+    if (Blynk.connected()
+        && (forceDashboardUpdate
+            || alarm != previousAlarm[side])) {
+      Blynk.virtualWrite(backRoom.led_vpin, alarm ? 1 : 0);
+      Blynk.virtualWrite(frontRoom.led_vpin, alarm ? 1 : 0);
+      Blynk.virtualWrite(backRoom.servo_vpin, windowAngle);
     }
-  }
-}
 
-BLYNK_WRITE(BUZZER_VPIN) {
-  int frequency = param.asInt();
-  if (frequency <= 0) {
-    noTone(BUZZER_PIN);
+    previousAlarm[side] = alarm;
+    anyAlarm = anyAlarm || alarm;
+  }
+
+  // One shared buzzer: sound if either side needs an alarm.
+  if (anyAlarm) {
+    tone(BUZZER_PIN, ALARM_FREQUENCY);
   } else {
-    tone(BUZZER_PIN, frequency);
+    noTone(BUZZER_PIN);
   }
+
+  static bool previousBuzzer = false;
+
+  if (Blynk.connected()
+      && (forceDashboardUpdate || anyAlarm != previousBuzzer)) {
+    Blynk.virtualWrite(
+      BUZZER_VPIN,
+      anyAlarm ? ALARM_FREQUENCY : 0
+    );
+  }
+
+  previousBuzzer = anyAlarm;
 }
 
-BLYNK_CONNECTED() {
-  for (Room room : rooms) {
-    Blynk.syncVirtual(room.led_vpin, room.servo_vpin);
+
+// Read every sensor before making control decisions.
+void onTimer() {
+  for (Room &room : rooms) {
+    room.sendData();
   }
-  Blynk.syncVirtual(BUZZER_VPIN);
+
+  for (Room &room : rooms) {
+    room.process();
+  }
+
+  updateAutomaticControl();
 }
+
+
+// Send the actual automatic output states to the app.
+BLYNK_CONNECTED() {
+  updateAutomaticControl(true);
+}
+
 
 void setup() {
-  // Setup connections between rooms
+  Serial.begin(115200);
+
   rooms[0].connected = &rooms[2];
   rooms[1].connected = &rooms[3];
   rooms[2].connected = &rooms[0];
   rooms[3].connected = &rooms[1];
 
-  Serial.begin(115200);
+  pinMode(BUZZER_PIN, OUTPUT);
+  noTone(BUZZER_PIN);
 
-  for (Room room : rooms) room.begin();
+  for (Room &room : rooms) {
+    if (room.led_pin != -1) {
+      pinMode(room.led_pin, OUTPUT);
+      room.setLED(LOW);
+    }
 
-  // Connect Arduino to Wi-Fi and Blynk Cloud
+    room.begin();
+
+    if (room.servo_pin != -1) {
+      room.setServo(WINDOW_CLOSED);
+    }
+  }
+
   Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
 
-  // Read and send sensor data every second
-  timer.setInterval(1000L, onTimer);
+  // Read sensors and update controls every two seconds.
+  timer.setInterval(2000L, onTimer);
 }
+
 
 void loop() {
   Blynk.run();
   timer.run();
 }
+
+
