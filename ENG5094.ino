@@ -27,6 +27,9 @@ struct RoomData {
   float temperature = NAN;
   float humidity    = NAN;
   float ppm         = NAN;
+
+  int manual_led = LOW;
+  int manual_servo_angle;
 };
 
 class Room {
@@ -181,7 +184,7 @@ class Room {
       led_pin(led_pin), led_vpin(led_vpin),
       servo_pin(servo_pin), servo_vpin(servo_vpin), init_servo_angle(init_servo_angle),
       process_func(process)
-      {};
+      {data.manual_servo_angle = init_servo_angle;};
   private:
     Servo servo;
     std::function<void(Room &room)> process_func = [](Room &room){};
@@ -198,30 +201,34 @@ Room rooms[4] {
   }),
   Room("Front Left", MQ135(A0), V2, D3, V3, [](Room &room){
     if (room.data.ppm > PPM_THRESHOLD) {
+      room.setLED(HIGH);
       room.connected->setLED(HIGH);
       tone(BUZZER_PIN, ALARM_FREQUENCY);
       room.connected->setServo(OPEN_ANGLE);
 
       Blynk.logEvent("left_co2_high");
     } else if (room.data.ppm < PPM_RESET) {
-      room.connected->setLED(HIGH);
+      room.setLED(room.data.manual_led);
+      room.connected->setLED(room.connected->data.manual_led);
       noTone(BUZZER_PIN);
-      room.connected->setServo(room.connected->init_servo_angle);
+      room.connected->setServo(room.connected->data.manual_servo_angle);
 
       Blynk.resolveAllEvents("left_co2_high");
     }
   }),
   Room("Front Right", MQ135(A1), V12, D5, V13, [](Room &room){
     if (room.data.ppm > PPM_THRESHOLD) {
+      room.setLED(HIGH);
       room.connected->setLED(HIGH);
       tone(BUZZER_PIN, ALARM_FREQUENCY);
       room.connected->setServo(OPEN_ANGLE);
 
       Blynk.logEvent("right_co2_high");
     } else if (room.data.ppm < PPM_RESET) {
-      room.connected->setLED(HIGH);
+      room.setLED(room.data.manual_led);
+      room.connected->setLED(room.connected->data.manual_led);
       noTone(BUZZER_PIN);
-      room.connected->setServo(room.connected->init_servo_angle);
+      room.connected->setServo(room.connected->data.manual_servo_angle);
 
       Blynk.resolveAllEvents("right_co2_high");
     }
@@ -242,9 +249,11 @@ BLYNK_WRITE_DEFAULT() {
   for (Room &room : rooms) {
     if (request.pin == room.led_vpin) {
       room.setLED(param.asInt());
+      room.data.manual_led = param.asInt();
       break;
     } else if (request.pin == room.servo_vpin) {
       room.setServo(param.asInt());
+      room.data.manual_servo_angle = param.asInt();
       break;
     }
   }
