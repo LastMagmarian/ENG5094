@@ -18,6 +18,11 @@
 #define BUZZER_VPIN V45
 #define BUZZER_PIN  13
 
+#define PPM_THRESHOLD   500
+#define PPM_RESET       450
+#define ALARM_FREQUENCY 4000
+#define OPEN_ANGLE      90
+
 struct RoomData {
   float temperature = NAN;
   float humidity    = NAN;
@@ -187,20 +192,39 @@ BlynkTimer timer;
 Room rooms[4] {
   Room("Back Left", DHT(D2, DHTTYPE), V0, V1, D9, V24, 0, D6, V23, [](Room &room){
     // Do stuff with rooms[0] (Back Left) data here
-
-    // Example of displaying current room data and doing something to another room. Replace this with something useful.
-    Serial.println(room.name);
-    Serial.println(room.data.temperature);
-    rooms[1].setLED(HIGH);
   }),
   Room("Back Right", DHT(D4, DHTTYPE), V10, V11, D10, V34, 0, D7, V33, [](Room &room){
     // Do stuff with rooms[1] (Back Left) data here
   }),
   Room("Front Left", MQ135(A0), V2, D3, V3, [](Room &room){
-    // Do stuff with rooms[2] (Front Left) data here
+    if (room.data.ppm > PPM_THRESHOLD) {
+      room.connected->setLED(HIGH);
+      tone(BUZZER_PIN, ALARM_FREQUENCY);
+      room.connected->setServo(OPEN_ANGLE);
+
+      Blynk.logEvent("left_co2_high");
+    } else if (room.data.ppm < PPM_RESET) {
+      room.connected->setLED(HIGH);
+      noTone(BUZZER_PIN);
+      room.connected->setServo(room.connected->init_servo_angle);
+
+      Blynk.resolveAllEvents("left_co2_high");
+    }
   }),
   Room("Front Right", MQ135(A1), V12, D5, V13, [](Room &room){
-    // Do stuff with rooms[3] (Front Right) data here
+    if (room.data.ppm > PPM_THRESHOLD) {
+      room.connected->setLED(HIGH);
+      tone(BUZZER_PIN, ALARM_FREQUENCY);
+      room.connected->setServo(OPEN_ANGLE);
+
+      Blynk.logEvent("right_co2_high");
+    } else if (room.data.ppm < PPM_RESET) {
+      room.connected->setLED(HIGH);
+      noTone(BUZZER_PIN);
+      room.connected->setServo(room.connected->init_servo_angle);
+
+      Blynk.resolveAllEvents("right_co2_high");
+    }
   })
 };
 
