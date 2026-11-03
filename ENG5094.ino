@@ -16,7 +16,7 @@
 
 #define DHTTYPE     DHT11
 #define BUZZER_VPIN V45
-#define BUZZER_PIN  13
+#define BUZZER_PIN  D11
 
 #define PPM_THRESHOLD   500
 #define PPM_RESET       450
@@ -191,15 +191,35 @@ class Room {
 };
 
 BlynkTimer timer;
+
+/*
+Blynk Virtual Pin Mappings
+
+  The mappings are of the form Vxy where x is the room index (ommited for 0) and y is the device/data type from the following table.
+  Devices not associated with a room take the index after the last room.
+
+  ┌─────────────┬────┐
+  │    Type     │ ID │
+  ├─────────────┼────┤
+  │ Humidity    │  0 │
+  │ Temperature │  1 │
+  │ MQ135       │  2 │
+  │ LED         │  3 │
+  │ Servo       │  4 │
+  │ Buzzer      │  5 │
+  └─────────────┴────┘
+
+  So for example a servo in room 1 would be on virtual pin V14.
+*/
 // Define rooms here
 Room rooms[4] {
-  Room("Back Left", DHT(D2, DHTTYPE), V0, V1, D9, V24, 0, D6, V23, [](Room &room){
+  Room("Back Left", DHT(D2, DHTTYPE), V0, V1, D9, V4, 0, D3, V3, [](Room &room){
     // Do stuff with rooms[0] (Back Left) data here
   }),
-  Room("Back Right", DHT(D4, DHTTYPE), V10, V11, D10, V34, 0, D7, V33, [](Room &room){
+  Room("Back Right", DHT(D4, DHTTYPE), V10, V11, D10, V14, 0, D5, V13, [](Room &room){
     // Do stuff with rooms[1] (Back Left) data here
   }),
-  Room("Front Left", MQ135(A0), V2, D3, V3, [](Room &room){
+  Room("Front Left", MQ135(A0), V22, D6, V23, [](Room &room){
     if (room.data.ppm > PPM_THRESHOLD) {
       room.setLED(HIGH);
       room.connected->setLED(HIGH);
@@ -216,7 +236,7 @@ Room rooms[4] {
       Blynk.resolveAllEvents("left_co2_high");
     }
   }),
-  Room("Front Right", MQ135(A1), V12, D5, V13, [](Room &room){
+  Room("Front Right", MQ135(A1), V32, D7, V33, [](Room &room){
     if (room.data.ppm > PPM_THRESHOLD) {
       room.setLED(HIGH);
       room.connected->setLED(HIGH);
