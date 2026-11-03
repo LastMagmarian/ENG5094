@@ -18,8 +18,15 @@
 #define BUZZER_VPIN V45
 #define BUZZER_PIN  D11
 
-#define PPM_THRESHOLD   500
-#define PPM_RESET       450
+#define PPM_THRESHOLD 500
+#define PPM_RESET     450
+
+#define TEMPERATURE_THRESHOLD 27
+#define TEMPERATURE_RESET     25
+
+#define HUMIDITY_THRESHOLD 65
+#define HUMIDITY_RESET     50
+
 #define ALARM_FREQUENCY 4000
 #define OPEN_ANGLE      90
 
@@ -211,13 +218,50 @@ Blynk Virtual Pin Mappings
 
   So for example a servo in room 1 would be on virtual pin V14.
 */
+
 // Define rooms here
 Room rooms[4] {
   Room("Back Left", DHT(D2, DHTTYPE), V0, V1, D9, V4, 0, D3, V3, [](Room &room){
-    // Do stuff with rooms[0] (Back Left) data here
+    if (room.data.temperature > TEMPERATURE_THRESHOLD) {
+      room.setServo(OPEN_ANGLE);
+      Blynk.logEvent("left_temperature_high");
+    } else if (room.data.ppm < TEMPERATURE_RESET) {
+      room.setServo(room.data.manual_servo_angle);
+      Blynk.resolveAllEvents("left_temperature_high");
+    }
+
+    if (room.data.ppm > HUMIDITY_THRESHOLD) {
+      room.setLED(HIGH);
+      room.connected->setLED(HIGH);
+
+      Blynk.logEvent("left_humidity_high");
+    } else if (room.data.ppm < HUMIDITY_RESET) {
+      room.setLED(room.data.manual_led);
+      room.connected->setLED(room.connected->data.manual_led);
+
+      Blynk.resolveAllEvents("left_humidity_high");
+    }
   }),
   Room("Back Right", DHT(D4, DHTTYPE), V10, V11, D10, V14, 0, D5, V13, [](Room &room){
-    // Do stuff with rooms[1] (Back Left) data here
+    if (room.data.temperature > TEMPERATURE_THRESHOLD) {
+      room.setServo(OPEN_ANGLE);
+      Blynk.logEvent("right_temperature_high");
+    } else if (room.data.ppm < TEMPERATURE_RESET) {
+      room.setServo(room.data.manual_servo_angle);
+      Blynk.resolveAllEvents("right_temperature_high");
+    }
+
+    if (room.data.ppm > HUMIDITY_THRESHOLD) {
+      room.setLED(HIGH);
+      room.connected->setLED(HIGH);
+
+      Blynk.logEvent("right_humidity_high");
+    } else if (room.data.ppm < HUMIDITY_RESET) {
+      room.setLED(room.data.manual_led);
+      room.connected->setLED(room.connected->data.manual_led);
+
+      Blynk.resolveAllEvents("right_humidity_high");
+    }
   }),
   Room("Front Left", MQ135(A0), V22, D6, V23, [](Room &room){
     if (room.data.ppm > PPM_THRESHOLD) {
