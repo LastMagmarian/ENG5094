@@ -105,7 +105,7 @@ class Room {
         Serial.print("Humidity: ");
         Serial.print(data.humidity);
         Serial.println(" %");
-        
+
         return true;
       }
       return false;
