@@ -226,25 +226,25 @@ Blynk Virtual Pin Mappings
 // Define rooms here
 Room rooms[4] {
   Room("Back Left", DHT(D2, DHTTYPE), V0, V1, D9, V4, 0, D3, V3, [](Room &room){
-    if (room.data.temperature > TEMPERATURE_THRESHOLD) {
+    if (!room.data.temperature_event && room.data.temperature > TEMPERATURE_THRESHOLD) {
       room.setServo(OPEN_ANGLE);
 
       room.data.temperature_event = true;
       Blynk.logEvent("left_temperature_high");
-    } else if (room.data.temperature < TEMPERATURE_RESET) {
+    } else if (room.data.temperature_event && room.data.temperature < TEMPERATURE_RESET) {
       if (!room.connected->data.ppm_event) room.setServo(room.data.manual_servo_angle);
 
       room.data.temperature_event = false;
       Blynk.resolveAllEvents("left_temperature_high");
     }
 
-    if (room.data.humidity > HUMIDITY_THRESHOLD) {
+    if (!room.data.humidity_event && room.data.humidity > HUMIDITY_THRESHOLD) {
       room.setLED(HIGH);
       room.connected->setLED(HIGH);
 
       room.data.humidity_event = true;
       Blynk.logEvent("left_humidity_high");
-    } else if (room.data.humidity < HUMIDITY_RESET) {
+    } else if (room.data.humidity_event && room.data.humidity < HUMIDITY_RESET) {
       if (!room.connected->data.ppm_event) {
         room.setLED(room.data.manual_led);
         room.connected->setLED(room.connected->data.manual_led);
@@ -255,25 +255,25 @@ Room rooms[4] {
     }
   }),
   Room("Back Right", DHT(D4, DHTTYPE), V10, V11, D10, V14, 0, D5, V13, [](Room &room){
-    if (room.data.temperature > TEMPERATURE_THRESHOLD) {
+    if (!room.data.temperature_event && room.data.temperature > TEMPERATURE_THRESHOLD) {
       room.setServo(OPEN_ANGLE);
 
       room.data.temperature_event = true;
       Blynk.logEvent("right_temperature_high");
-    } else if (room.data.temperature < TEMPERATURE_RESET) {
+    } else if (room.data.temperature_event && room.data.temperature < TEMPERATURE_RESET) {
       if (!room.connected->data.ppm_event) room.setServo(room.data.manual_servo_angle);
 
       room.data.temperature_event = false;
       Blynk.resolveAllEvents("right_temperature_high");
     }
 
-    if (room.data.humidity > HUMIDITY_THRESHOLD) {
+    if (!room.data.humidity_event && room.data.humidity > HUMIDITY_THRESHOLD) {
       room.setLED(HIGH);
       room.connected->setLED(HIGH);
 
       room.data.humidity_event = true;
       Blynk.logEvent("right_humidity_high");
-    } else if (room.data.humidity < HUMIDITY_RESET) {
+    } else if (room.data.humidity_event && room.data.humidity < HUMIDITY_RESET) {
       if (!room.connected->data.ppm_event) {
         room.setLED(room.data.manual_led);
         room.connected->setLED(room.connected->data.manual_led);
@@ -284,7 +284,7 @@ Room rooms[4] {
     }
   }),
   Room("Front Left", MQ135(A0), V22, D6, V23, [](Room &room){
-    if (room.data.ppm > PPM_THRESHOLD) {
+    if (!room.data.ppm_event && room.data.ppm > PPM_THRESHOLD) {
       tone(BUZZER_PIN, ALARM_FREQUENCY);
       room.setLED(HIGH);
       room.connected->setLED(HIGH);
@@ -292,7 +292,7 @@ Room rooms[4] {
 
       room.data.ppm_event = true;
       Blynk.logEvent("left_co2_high");
-    } else if (room.data.ppm < PPM_RESET) {
+    } else if (room.data.ppm_event && room.data.ppm < PPM_RESET) {
       noTone(BUZZER_PIN);
       if (!room.connected->data.humidity_event) {
         room.setLED(room.data.manual_led);
@@ -305,7 +305,7 @@ Room rooms[4] {
     }
   }),
   Room("Front Right", MQ135(A1), V32, D7, V33, [](Room &room){
-    if (room.data.ppm > PPM_THRESHOLD) {
+    if (!room.data.ppm_event && room.data.ppm > PPM_THRESHOLD) {
       tone(BUZZER_PIN, ALARM_FREQUENCY);
       room.setLED(HIGH);
       room.connected->setLED(HIGH);
@@ -313,7 +313,7 @@ Room rooms[4] {
 
       room.data.ppm_event = true;
       Blynk.logEvent("right_co2_high");
-    } else if (room.data.ppm < PPM_RESET) {
+    } else if (room.data.ppm_event && room.data.ppm < PPM_RESET) {
       noTone(BUZZER_PIN);
       if (!room.connected->data.humidity_event) {
         room.setLED(room.data.manual_led);
