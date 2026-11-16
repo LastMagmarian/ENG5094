@@ -147,14 +147,14 @@ class Room {
 
     void setLED(int status, bool report = true) {
       if (led_pin != -1) {
-        if (report) Blynk.virtualWrite(this->led_vpin);
+        if (report) Blynk.virtualWrite(this->led_vpin, status);
         digitalWrite(led_pin, status);
       }
     }
 
     void setServo(int angle, bool report = true) {
       if (servo_pin != -1) {
-        if (report) Blynk.virtualWrite(this->servo_vpin);
+        if (report) Blynk.virtualWrite(this->servo_vpin, angle);
         servo.write(angle);
       }
     }
