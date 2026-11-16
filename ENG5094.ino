@@ -145,14 +145,16 @@ class Room {
       } else sendMQ135();
     }
 
-    void setLED(int status) {
+    void setLED(int status, bool report = true) {
       if (led_pin != -1) {
+        if (report) Blynk.virtualWrite(this->led_vpin);
         digitalWrite(led_pin, status);
       }
     }
 
-    void setServo(int angle) {
+    void setServo(int angle, bool report = true) {
       if (servo_pin != -1) {
+        if (report) Blynk.virtualWrite(this->servo_vpin);
         servo.write(angle);
       }
     }
@@ -339,11 +341,11 @@ void onTimer() {
 BLYNK_WRITE_DEFAULT() {
   for (Room &room : rooms) {
     if (request.pin == room.led_vpin) {
-      room.setLED(param.asInt());
+      room.setLED(param.asInt(), false);
       room.data.manual_led = param.asInt();
       break;
     } else if (request.pin == room.servo_vpin) {
-      room.setServo(param.asInt());
+      room.setServo(param.asInt(), false);
       room.data.manual_servo_angle = param.asInt();
       break;
     }
