@@ -295,7 +295,7 @@ Room rooms[4] {
       room.data.ppm_event = true;
       Blynk.logEvent("left_co2_high");
     } else if (room.data.ppm_event && room.data.ppm < PPM_RESET) {
-      noTone(BUZZER_PIN);
+      if (!rooms[4].data.ppm_event) noTone(BUZZER_PIN);
       if (!room.connected->data.humidity_event) {
         room.setLED(room.data.manual_led);
         room.connected->setLED(room.connected->data.manual_led);
@@ -316,7 +316,7 @@ Room rooms[4] {
       room.data.ppm_event = true;
       Blynk.logEvent("right_co2_high");
     } else if (room.data.ppm_event && room.data.ppm < PPM_RESET) {
-      noTone(BUZZER_PIN);
+      if (!rooms[3].data.ppm_event) noTone(BUZZER_PIN);
       if (!room.connected->data.humidity_event) {
         room.setLED(room.data.manual_led);
         room.connected->setLED(room.connected->data.manual_led);
